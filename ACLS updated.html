@@ -2226,6 +2226,29 @@
                 app.resetButtonState('btn-anti', 'Amiodarone', 'sub-anti', 'Wait...');
                 document.getElementById('btn-anti').classList.add('bg-blue', 'locked');
 
+                // Reset tachy cardioversion buttons to initial state
+                const tachyBtns = document.querySelectorAll('#v-tachy-unstable-select .action-btn');
+                tachyBtns.forEach(btn => {
+                    btn.classList.remove('given-state', 'urgent');
+                    btn.style.animation = '';
+                });
+                const svtBtn = document.querySelector('[onclick*="escalate(\'SVT\'"]');
+                if (svtBtn) { svtBtn.innerHTML = `SVT<span class="btn-sub">Narrow Reg<br>100J</span>`; svtBtn.onclick = function () { tachy.escalate('SVT', 100, this); }; }
+                const vtBtn = document.querySelector('[onclick*="escalate(\'Mono VT\'"]');
+                if (vtBtn) { vtBtn.innerHTML = `Mono VT<span class="btn-sub">Wide Reg<br>100J</span>`; vtBtn.onclick = function () { tachy.escalate('Mono VT', 100, this); }; }
+                const afibBtn = document.querySelector('[onclick*="escalate(\'Afib\'"]');
+                if (afibBtn) { afibBtn.innerHTML = `Afib<span class="btn-sub">Irregular<br>Start 200J</span>`; afibBtn.onclick = function () { tachy.escalate('Afib', 200, this); }; }
+                const aflutterBtn = document.querySelector('[onclick*="escalate(\'A-Flutter\'"]');
+                if (aflutterBtn) { aflutterBtn.innerHTML = `A-Flutter<span class="btn-sub">Regular<br>Start 200J</span>`; aflutterBtn.onclick = function () { tachy.escalate('A-Flutter', 200, this); }; }
+
+                // Reset tachy-content for stable tachy
+                document.getElementById('tachy-content').innerHTML = '';
+
+                // Reset all given-state buttons in all views
+                document.querySelectorAll('.given-state').forEach(el => {
+                    el.classList.remove('given-state');
+                });
+
                 document.getElementById('t-cpr').innerText = "02:00";
                 document.getElementById('btn-back').classList.add('hidden-back');
                 app.setView('v-home');
@@ -2471,11 +2494,9 @@
                 arrest.lastEpiTime = Date.now();
                 app.log(`Epinephrine 1mg Intravenous Push (#${arrest.epiCount})`, 'Epi');
                 arrest.epiSecs = 0;
-                if (arrest.type === 'PEA' || arrest.type === 'Asystole') {
-                    document.getElementById('t-epi').innerText = "00:00";
-                    arrest.updateEpiVisuals();
-                }
+                document.getElementById('t-epi').innerText = "00:00";
                 document.getElementById('t-epi').style.color = 'var(--c-blue)';
+                arrest.updateEpiVisuals();
             },
 
             toggleDrug: () => {
@@ -2510,7 +2531,7 @@
             giveAnti: () => {
                 const dose = document.getElementById('sub-anti').innerText;
                 const name = arrest.drugType === 'Amio' ? 'Amiodarone' : 'Lidocaine';
-                app.log(`${name} Given (${dose})`, 'Anti');
+                app.log(`${name} Given (${dose})`, 'Anti', document.getElementById('btn-anti'));
             },
 
             confirmCheck: () => {
@@ -2533,7 +2554,7 @@
                 if (isStable) {
                     app.log("Bradycardia: Stable", 'System');
                     app.guide("Stable Bradycardia", "Monitor & Observe", "g-safe");
-                    div.innerHTML = `<button class="action-btn bg-green" onclick="app.log('12-Lead EKG Done', 'Generic')">12-Lead EKG</button>`;
+                    div.innerHTML = `<button class="action-btn bg-green" onclick="app.log('12-Lead EKG Done', 'Generic', this)">12-Lead EKG</button>`;
                 } else {
                     app.guide("Unstable Bradycardia", "High-Grade Block? -> TCP", "g-alert");
                     div.innerHTML = `
@@ -2542,16 +2563,16 @@
                             <div class="info-row"><span>Epinephrine Drip</span> <span>1mg in 100mL (Run 12-60 D)</span></div>
                         </div>
                         <div class="grid-2">
-                            <button class="action-btn bg-yellow" onclick="app.log('Skipped Atropine (High-Block)', 'Generic')">High-Block<span class="btn-sub">Skip Atropine</span></button>
+                            <button class="action-btn bg-yellow" onclick="app.log('Skipped Atropine (High-Block)', 'Generic', this)">High-Block<span class="btn-sub">Skip Atropine</span></button>
                             <button id="btn-atropine" class="action-btn bg-blue suggested" onclick="brady.giveAtropine()">
                                 Atropine 1mg
                                 <span id="sub-atropine" class="btn-sub">Max 3mg (#0)</span>
                             </button>
                         </div>
-                        <button class="action-btn bg-yellow" style="margin-top:10px;" onclick="app.log('Transcutaneous Pacing (TCP) Started', 'Generic')">TCP (Pacing)<span class="btn-sub">Start 35mA / 70bpm</span></button>
+                        <button class="action-btn bg-yellow" style="margin-top:10px;" onclick="app.log('Transcutaneous Pacing (TCP) Started', 'Generic', this)">TCP (Pacing)<span class="btn-sub">Start 35mA / 70bpm</span></button>
                         <div class="grid-2" style="margin-top:10px;">
-                            <button class="action-btn bg-grey" onclick="app.log('Dopamine Infusion (Easydopa 12D)', 'Generic')">Dopamine<span class="btn-sub">Easydopa 12D</span></button>
-                            <button class="action-btn bg-grey" onclick="app.log('Epinephrine Drip (1mg in 100ml NS)', 'Generic')">Epinephrine Drip<span class="btn-sub">1mg in 100ml</span></button>
+                            <button class="action-btn bg-grey" onclick="app.log('Dopamine Infusion (Easydopa 12D)', 'Generic', this)">Dopamine<span class="btn-sub">Easydopa 12D</span></button>
+                            <button class="action-btn bg-grey" onclick="app.log('Epinephrine Drip (1mg in 100ml NS)', 'Generic', this)">Epinephrine Drip<span class="btn-sub">1mg in 100ml</span></button>
                         </div>
                     `;
                 }
@@ -2661,16 +2682,13 @@
 
             step: (num) => {
                 if (num === 1) {
-                    app.log("Vagal Maneuver", 'Generic');
-                    document.getElementById('step1').classList.remove('suggested');
+                    app.log("Vagal Maneuver", 'Generic', document.getElementById('step1'));
                     document.getElementById('step2').classList.remove('dimmed'); document.getElementById('step2').classList.add('suggested');
                 } else if (num === 2) {
-                    app.log("Adenosine 6mg IVP", 'Generic');
-                    document.getElementById('step2').classList.remove('suggested');
+                    app.log("Adenosine 6mg IVP", 'Generic', document.getElementById('step2'));
                     document.getElementById('step3').classList.remove('dimmed'); document.getElementById('step3').classList.add('suggested');
                 } else if (num === 3) {
-                    app.log("Adenosine 12mg IVP", 'Generic');
-                    document.getElementById('step3').classList.remove('suggested');
+                    app.log("Adenosine 12mg IVP", 'Generic', document.getElementById('step3'));
                     document.getElementById('step4').classList.remove('dimmed'); document.getElementById('step4').classList.add('suggested');
                 } else {
                     tachy.wideIrreg();
@@ -2703,23 +2721,23 @@
                         <div class="info-row"><span class="txt-yellow">Rate</span> <span>34 ml/hr (34D) for 6 hrs</span></div>
                         <div class="info-row"><span class="txt-yellow">Then</span> <span>17 ml/hr (17D) for 18 hrs</span></div>
                     </div>
-                    <button class="action-btn bg-blue suggested" onclick="app.log('Amiodarone 150mg Intravenous Drip over 10 min', 'Generic')">
+                    <button class="action-btn bg-blue suggested" onclick="app.log('Amiodarone 150mg Intravenous Drip over 10 min', 'Generic', this)">
                         Amiodarone
                         <span class="btn-sub">150mg / 10 min</span>
                     </button>
-                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Procainamide 20-50mg/min Infusion', 'Generic')">
+                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Procainamide 20-50mg/min Infusion', 'Generic', this)">
                         Procainamide
                         <span class="btn-sub">20-50mg/min (Max 17mg/kg)</span>
                     </button>
-                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Sotalol 100mg over 5 min', 'Generic')">
+                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Sotalol 100mg over 5 min', 'Generic', this)">
                         Sotalol
                         <span class="btn-sub">100mg (1.5mg/kg) / 5 min</span>
                     </button>
-                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Lidocaine 1-1.5mg/kg Intravenous Bolus', 'Generic')">
+                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Lidocaine 1-1.5mg/kg Intravenous Bolus', 'Generic', this)">
                         Lidocaine
                         <span class="btn-sub">1-1.5mg/kg</span>
                     </button>
-                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Magnesium Sulfate 1-2g Intravenous Push (Torsades de Pointes)', 'Generic')">Magnesium Sulfate (Torsades)</button>
+                    <button class="action-btn bg-blue" style="margin-top:10px;" onclick="app.log('Magnesium Sulfate 1-2g Intravenous Push (Torsades de Pointes)', 'Generic', this)">Magnesium Sulfate (Torsades)</button>
                 `;
             },
 
@@ -2750,7 +2768,7 @@
             afibHf: (hasHf) => {
                 app.guide(tachy.rhythmName, hasHf ? "HF Present -> Amio/Digoxin" : "No HF -> Amio/Ca-Ch/Digoxin", "g-info");
                 let html = `
-                    <button class="action-btn bg-blue suggested flash-cpr" style="animation: flash-btn 1s infinite alternate;" onclick="app.log('Amiodarone 150mg Intravenous Push', 'Generic')">
+                    <button class="action-btn bg-blue suggested flash-cpr" style="animation: flash-btn 1s infinite alternate;" onclick="app.log('Amiodarone 150mg Intravenous Push', 'Generic', this)">
                         Amiodarone
                         <span class="btn-sub">150mg / 10 min</span>
                     </button>
@@ -2758,7 +2776,7 @@
 
                 if (!hasHf) {
                     html += `
-                        <button class="action-btn bg-blue suggested" style="margin-top:10px; animation: flash-btn 1.2s infinite alternate;" onclick="app.log('Herbesser/Diltiazem 15mg Intravenous Push in 2 min', 'Generic')">
+                        <button class="action-btn bg-blue suggested" style="margin-top:10px; animation: flash-btn 1.2s infinite alternate;" onclick="app.log('Herbesser/Diltiazem 15mg Intravenous Push in 2 min', 'Generic', this)">
                             Herbesser / Diltiazem
                             <span class="btn-sub">15mg IVD in 2 min</span>
                         </button>
@@ -2766,7 +2784,7 @@
                 }
 
                 html += `
-                    <button class="action-btn bg-blue suggested" style="margin-top:10px; animation: flash-btn 1.4s infinite alternate;" onclick="app.log('Digoxin 0.25mg Intravenous Q30min', 'Generic')">
+                    <button class="action-btn bg-blue suggested" style="margin-top:10px; animation: flash-btn 1.4s infinite alternate;" onclick="app.log('Digoxin 0.25mg Intravenous Q30min', 'Generic', this)">
                         Digoxin
                         <span class="btn-sub">0.25mg IV Q30min</span>
                     </button>
